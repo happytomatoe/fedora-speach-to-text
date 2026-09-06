@@ -1,6 +1,24 @@
 # Lefthook configuration
 # https://lefthook.dev/configuration
 
+post-checkout:
+  commands:
+    worktree-setup:
+      # Git passes: {1}=prev HEAD, {2}=new HEAD, {3}=checkout flag (1=branch/worktree)
+      # Check if previous HEAD is all zeros — indicates a new worktree.
+      run: |
+        if [ "{1}" = "0000000000000000000000000000000000000000" ] && [ "{3}" = "1" ]; then
+          LOG="$PWD/.worktree-setup.log"
+          echo "🚀 New Git Worktree detected! Logging to $LOG"
+          exec >> "$LOG" 2>&1
+          just worktree-setup
+          echo "✅ Worktree setup complete. See $LOG"
+          echo "[3/3] qemu-e2e-setup..."
+          just qemu-e2e-setup
+          echo "=== $(date) worktree setup complete ==="
+          echo "✅ Worktree setup complete. See $LOG"
+        fi
+
 pre-commit:
   parallel: true
   commands:
