@@ -92,12 +92,14 @@ worktree-setup:
     (cd e2e && bun install)
     MAIN_WT=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
     if [ -f "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" ]; then
-        echo "[2/3] Copying VM images from main worktree ($MAIN_WT)..."
+        echo "[2/3] Linking VM images from main worktree ($MAIN_WT)..."
         mkdir -p e2e/qemu-images/persistent-run/main
-        cp -n "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/ || true
-        cp -n "$MAIN_WT/e2e/qemu-images/cloud-init.iso" e2e/qemu-images/ 2>/dev/null || true
-        cp -n "$MAIN_WT/e2e/qemu-images/id_ed25519" e2e/qemu-images/ 2>/dev/null || true
-        cp -n "$MAIN_WT/e2e/qemu-images/id_ed25519.pub" e2e/qemu-images/ 2>/dev/null || true
+        ln -sfn "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/golden-gnome-deps.qcow2
+        ln -sfn "$MAIN_WT/e2e/qemu-images/cloud-init.iso" e2e/qemu-images/cloud-init.iso 2>/dev/null || true
+        ln -sfn "$MAIN_WT/e2e/qemu-images/id_ed25519" e2e/qemu-images/id_ed25519 2>/dev/null || true
+        ln -sfn "$MAIN_WT/e2e/qemu-images/id_ed25519.pub" e2e/qemu-images/id_ed25519.pub 2>/dev/null || true
+        # Overlay is WRITTEN by the VM at runtime — must be a real copy,
+        # not a symlink (worktrees would corrupt each other's VM state).
         cp -n "$MAIN_WT/e2e/qemu-images/persistent-run/main/overlay.qcow2" e2e/qemu-images/persistent-run/main/ 2>/dev/null || true
         # Copied overlay has a stale absolute backing path — rebase locally.
         qemu-img rebase -u -f qcow2 -F qcow2 -b "$PWD/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/persistent-run/main/overlay.qcow2 2>/dev/null || true
@@ -953,7 +955,8 @@ qemu-e2e-setup:
         cp "$MAIN_VM_DIR/golden-gnome-deps.qcow2" "$GOLDEN_FILE"
         echo "✓ Copied: $GOLDEN_FILE"
     else
-        echo "Downloading golden-gnome-deps.qcow2 from Filen..."
+        echo "Downloading golden-gnome-deps.qcow2 (~1.8GB) from Filen..."
+        echo "  👀 Track progress: tail -f $GOLDEN_FILE (or watch du -sh $GOLDEN_FILE)"
         filen download "/golden-gnome-deps.qcow2" "$GOLDEN_FILE"
         echo "✓ Downloaded: $GOLDEN_FILE"
     fi
@@ -970,6 +973,7 @@ qemu-e2e-setup:
         echo "✓ SSH keys copied: $VM_DIR/id_ed25519"
     else
         echo "Downloading SSH keys from Filen..."
+        echo "  👀 Track progress: tail -f $VM_DIR/.worktree-setup.log"
         [[ -f "$VM_DIR/id_ed25519" ]] || filen download "/id_ed25519" "$VM_DIR/id_ed25519"
         [[ -f "$VM_DIR/id_ed25519.pub" ]] || filen download "/id_ed25519.pub" "$VM_DIR/id_ed25519.pub"
         chmod 600 "$VM_DIR/id_ed25519"
@@ -988,6 +992,7 @@ qemu-e2e-setup:
         echo "✓ Copied: $OVERLAY_FILE"
     else
         echo "Downloading overlay.qcow2 from Filen..."
+        echo "  👀 Track progress: tail -f $OVERLAY_FILE (or watch du -sh $OVERLAY_FILE)"
         mkdir -p "$(dirname "$OVERLAY_FILE")"
         filen download "/overlay.qcow2" "$OVERLAY_FILE"
         echo "✓ Downloaded: $OVERLAY_FILE"
