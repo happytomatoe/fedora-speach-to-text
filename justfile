@@ -88,11 +88,11 @@ worktree-setup:
     LOG="$PWD/.worktree-setup.log"
     exec >> "$LOG" 2>&1
     echo "=== $(date) worktree setup start ==="
-    echo "[1/4] bun install (e2e)..."
+    echo "[1/3] bun install (e2e)..."
     (cd e2e && bun install)
     MAIN_WT=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
     if [ -f "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" ]; then
-        echo "[2/4] Copying VM images from main worktree ($MAIN_WT)..."
+        echo "[2/3] Copying VM images from main worktree ($MAIN_WT)..."
         mkdir -p e2e/qemu-images/persistent-run/main
         cp -n "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/ || true
         cp -n "$MAIN_WT/e2e/qemu-images/cloud-init.iso" e2e/qemu-images/ 2>/dev/null || true
@@ -103,13 +103,10 @@ worktree-setup:
         qemu-img rebase -u -f qcow2 -F qcow2 -b "$PWD/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/persistent-run/main/overlay.qcow2 2>/dev/null || true
         chmod 600 e2e/qemu-images/id_ed25519 2>/dev/null || true
     else
-        echo "[2/4] No VM images in main worktree — setup will download."
+        echo "[2/3] No VM images in main worktree — setup will download."
     fi
-    echo "[3/4] qemu-e2e-setup..."
+    echo "[3/3] qemu-e2e-setup..."
     just qemu-e2e-setup
-    echo "[4/4] e2e-setup-ubuntu (Ubuntu cloud image for the unified suite)..."
-    just e2e-setup-ubuntu || echo "⚠️  e2e-setup-ubuntu failed (Fedora-only workflow is still usable)"
-    echo "=== $(date) worktree setup complete ==="
     echo "✅ Worktree setup complete. See $LOG"
 
 # @category setup
