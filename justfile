@@ -108,7 +108,7 @@ worktree-setup:
         echo "[2/3] No VM images in main worktree — setup will download."
     fi
     echo "[3/3] qemu-e2e-setup..."
-    just qemu-e2e-setup
+    just qemu-e2e-setup | tee -a "$LOG"
     echo "✅ Worktree setup complete. See $LOG"
 
 # @category setup
