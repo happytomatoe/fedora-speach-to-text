@@ -26,6 +26,9 @@ post-checkout:
             cp -n "$MAIN_WT/e2e/qemu-images/id_ed25519.pub" e2e/qemu-images/ 2>/dev/null || true
             mkdir -p e2e/qemu-images/persistent-run/main
             cp -n "$MAIN_WT/e2e/qemu-images/persistent-run/main/overlay.qcow2" e2e/qemu-images/persistent-run/main/ 2>/dev/null || true
+            # Copied overlay has a stale absolute backing path from wherever
+            # the golden image was created — rebase it onto the local copy.
+            qemu-img rebase -u -f qcow2 -F qcow2 -b "$PWD/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/persistent-run/main/overlay.qcow2 2>/dev/null || true
             chmod 600 e2e/qemu-images/id_ed25519 2>/dev/null || true
           else
             echo "[2/3] No VM images in main worktree — setup will download."
