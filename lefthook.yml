@@ -8,10 +8,16 @@ post-checkout:
       # Check if previous HEAD is all zeros — indicates a new worktree.
       run: |
         if [ "{1}" = "0000000000000000000000000000000000000000" ] && [ "{3}" = "1" ]; then
-          echo "🚀 New Git Worktree detected! Running setup..."
+          LOG="$PWD/.worktree-setup.log"
+          echo "🚀 New Git Worktree detected! Logging to $LOG"
+          exec >> "$LOG" 2>&1
+          echo "=== $(date) worktree setup start ==="
+          echo "[1/2] bun install (e2e)..."
           cd e2e && bun install
-          just qemu-e2e-setup
-          echo "✅ Worktree setup complete."
+          echo "[2/2] qemu-e2e-setup (downloads ~3GB golden image on first run)..."
+          cd .. && just qemu-e2e-setup
+          echo "=== $(date) worktree setup complete ==="
+          echo "✅ Worktree setup complete. See $LOG"
         fi
 
 pre-commit:
