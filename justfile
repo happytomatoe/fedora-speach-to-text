@@ -957,7 +957,7 @@ qemu-e2e-setup:
     else
         echo "Downloading golden-gnome-deps.qcow2 (~1.8GB) from Filen..."
         echo "  👀 Track progress: tail -f $GOLDEN_FILE (or watch du -sh $GOLDEN_FILE)"
-        filen download "/golden-gnome-deps.qcow2" "$GOLDEN_FILE"
+        filen download "/golden-gnome-deps.qcow2" "$GOLDEN_FILE" 2>&1 | tee
         echo "✓ Downloaded: $GOLDEN_FILE"
     fi
     echo ""
@@ -974,8 +974,8 @@ qemu-e2e-setup:
     else
         echo "Downloading SSH keys from Filen..."
         echo "  👀 Track progress: tail -f $VM_DIR/.worktree-setup.log"
-        [[ -f "$VM_DIR/id_ed25519" ]] || filen download "/id_ed25519" "$VM_DIR/id_ed25519"
-        [[ -f "$VM_DIR/id_ed25519.pub" ]] || filen download "/id_ed25519.pub" "$VM_DIR/id_ed25519.pub"
+        [[ -f "$VM_DIR/id_ed25519" ]] || filen download "/id_ed25519" "$VM_DIR/id_ed25519" 2>&1 | tee
+        [[ -f "$VM_DIR/id_ed25519.pub" ]] || filen download "/id_ed25519.pub" "$VM_DIR/id_ed25519.pub" 2>&1 | tee
         chmod 600 "$VM_DIR/id_ed25519"
         echo "✓ SSH keys downloaded: $VM_DIR/id_ed25519"
     fi
@@ -994,7 +994,7 @@ qemu-e2e-setup:
         echo "Downloading overlay.qcow2 from Filen..."
         echo "  👀 Track progress: tail -f $OVERLAY_FILE (or watch du -sh $OVERLAY_FILE)"
         mkdir -p "$(dirname "$OVERLAY_FILE")"
-        filen download "/overlay.qcow2" "$OVERLAY_FILE"
+        filen download "/overlay.qcow2" "$OVERLAY_FILE" 2>&1 | tee
         echo "✓ Downloaded: $OVERLAY_FILE"
     fi
     echo ""
