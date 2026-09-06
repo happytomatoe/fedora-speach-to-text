@@ -7,7 +7,7 @@ post-checkout:
       # Git passes: {1}=prev HEAD, {2}=new HEAD, {3}=checkout flag (1=branch/worktree)
       # Check if previous HEAD is all zeros — indicates a new worktree.
       run: |
-        if [ "{1}" = "00000000000000000000000000000000000000" ] && [ "{3}" = "1" ]; then
+        if [ "{1}" = "0000000000000000000000000000000000000000" ] && [ "{3}" = "1" ]; then
           echo "🚀 New Git Worktree detected! Running setup..."
           cd e2e && bun install
           just qemu-e2e-setup
