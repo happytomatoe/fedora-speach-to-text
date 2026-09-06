@@ -79,6 +79,39 @@ dev-setup: setup-deps dev-sync
     @echo "Development environment ready."
 
 # @category setup
+# Set up a worktree for e2e testing: bun deps + VM images from main worktree.
+# Same logic as the lefthook post-checkout hook (lefthook.yml); run manually
+# if the hook was skipped or you want to re-run setup.
+worktree-setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    LOG="$PWD/.worktree-setup.log"
+    exec >> "$LOG" 2>&1
+    echo "=== $(date) worktree setup start ==="
+    echo "[1/3] bun install (e2e)..."
+    (cd e2e && bun install)
+    MAIN_WT=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+    if [ -f "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" ]; then
+        echo "[2/3] Linking VM images from main worktree ($MAIN_WT)..."
+        mkdir -p e2e/qemu-images/persistent-run/main
+        ln -sfn "$MAIN_WT/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/golden-gnome-deps.qcow2
+        ln -sfn "$MAIN_WT/e2e/qemu-images/cloud-init.iso" e2e/qemu-images/cloud-init.iso 2>/dev/null || true
+        ln -sfn "$MAIN_WT/e2e/qemu-images/id_ed25519" e2e/qemu-images/id_ed25519 2>/dev/null || true
+        ln -sfn "$MAIN_WT/e2e/qemu-images/id_ed25519.pub" e2e/qemu-images/id_ed25519.pub 2>/dev/null || true
+        # Overlay is WRITTEN by the VM at runtime — must be a real copy,
+        # not a symlink (worktrees would corrupt each other's VM state).
+        cp -n "$MAIN_WT/e2e/qemu-images/persistent-run/main/overlay.qcow2" e2e/qemu-images/persistent-run/main/ 2>/dev/null || true
+        # Copied overlay has a stale absolute backing path — rebase locally.
+        qemu-img rebase -u -f qcow2 -F qcow2 -b "$PWD/e2e/qemu-images/golden-gnome-deps.qcow2" e2e/qemu-images/persistent-run/main/overlay.qcow2 2>/dev/null || true
+        chmod 600 e2e/qemu-images/id_ed25519 2>/dev/null || true
+    else
+        echo "[2/3] No VM images in main worktree — setup will download."
+    fi
+    echo "[3/3] qemu-e2e-setup..."
+    just qemu-e2e-setup | tee -a "$LOG"
+    echo "✅ Worktree setup complete. See $LOG"
+
+# @category setup
 # Install system dependencies for development and E2E testing
 setup-deps:
     #!/usr/bin/env bash
@@ -922,8 +955,10 @@ qemu-e2e-setup:
         cp "$MAIN_VM_DIR/golden-gnome-deps.qcow2" "$GOLDEN_FILE"
         echo "✓ Copied: $GOLDEN_FILE"
     else
-        echo "Downloading golden-gnome-deps.qcow2 from Filen..."
-        filen download "/golden-gnome-deps.qcow2" "$GOLDEN_FILE"
+        echo "Downloading golden-gnome-deps.qcow2 (~1.8GB) from Filen..."
+        echo "  👀 Track progress: tail -f $GOLDEN_FILE (or watch du -sh $GOLDEN_FILE)"
+        echo "  📜 Download log (progress bar + speed): tail -f $VM_DIR/.filen-download.log"
+        "./scripts/filen-download.sh" "$VM_DIR/.filen-download.log" "/golden-gnome-deps.qcow2" "$GOLDEN_FILE"
         echo "✓ Downloaded: $GOLDEN_FILE"
     fi
     echo ""
@@ -939,8 +974,10 @@ qemu-e2e-setup:
         echo "✓ SSH keys copied: $VM_DIR/id_ed25519"
     else
         echo "Downloading SSH keys from Filen..."
-        [[ -f "$VM_DIR/id_ed25519" ]] || filen download "/id_ed25519" "$VM_DIR/id_ed25519"
-        [[ -f "$VM_DIR/id_ed25519.pub" ]] || filen download "/id_ed25519.pub" "$VM_DIR/id_ed25519.pub"
+        echo "  👀 Track progress: tail -f $VM_DIR/.worktree-setup.log"
+        echo "  📜 Download log (progress bar + speed): tail -f $VM_DIR/.filen-download.log"
+        [[ -f "$VM_DIR/id_ed25519" ]] || "./scripts/filen-download.sh" "$VM_DIR/.filen-download.log" "/id_ed25519" "$VM_DIR/id_ed25519"
+        [[ -f "$VM_DIR/id_ed25519.pub" ]] || "./scripts/filen-download.sh" "$VM_DIR/.filen-download.log" "/id_ed25519.pub" "$VM_DIR/id_ed25519.pub"
         chmod 600 "$VM_DIR/id_ed25519"
         echo "✓ SSH keys downloaded: $VM_DIR/id_ed25519"
     fi
@@ -957,8 +994,10 @@ qemu-e2e-setup:
         echo "✓ Copied: $OVERLAY_FILE"
     else
         echo "Downloading overlay.qcow2 from Filen..."
+        echo "  👀 Track progress: tail -f $OVERLAY_FILE (or watch du -sh $OVERLAY_FILE)"
+        echo "  📜 Download log (progress bar + speed): tail -f $VM_DIR/.filen-download.log"
         mkdir -p "$(dirname "$OVERLAY_FILE")"
-        filen download "/overlay.qcow2" "$OVERLAY_FILE"
+        "./scripts/filen-download.sh" "$VM_DIR/.filen-download.log" "/overlay.qcow2" "$OVERLAY_FILE"
         echo "✓ Downloaded: $OVERLAY_FILE"
     fi
     echo ""

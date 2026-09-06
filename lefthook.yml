@@ -1,6 +1,18 @@
 # Lefthook configuration
 # https://lefthook.dev/configuration
 
+post-checkout:
+  commands:
+    worktree-setup:
+      # Git passes: {1}=prev HEAD, {2}=new HEAD, {3}=checkout flag (1=branch/worktree)
+      # Check if previous HEAD is all zeros — indicates a new worktree.
+      run: |
+        if [ "{1}" = "000000000000000000000000000000000000" ] && [ "{3}" = "1" ]; then
+          echo "🚀 New Git Worktree detected! Running setup..."
+          just worktree-setup
+          echo "✅ Worktree setup complete."
+        fi
+
 pre-commit:
   parallel: true
   commands:
